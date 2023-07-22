@@ -1,0 +1,118 @@
+---
+title: "Task-1: Titanic Survival Prediction"
+author: "Kankana Ghosh"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Importing all the necessary libraries required for the analysis
+
+```{r setup, include=TRUE, warning=FALSE}
+rm(list=ls())
+set.seed(987654321)
+library(tidyverse)
+library(pROC)
+df=read.csv("C:/Users/Kankana Ghosh/Desktop/Codsoft/Titanic.csv")
+class(df)
+head(df)
+str(df)
+```
+
+**Comments:**
+The dataset is dataframe in nature containing 418 observations on 12 variables.
+
+```{r}
+table(is.na(df$PassengerId))
+table(ifelse(df$PassengerId=="",1,0))
+table(is.na(df$Survived))
+table(ifelse(df$Survived=="",1,0))
+table(is.na(df$Pclass))
+table(ifelse(df$Pclass=="",1,0))
+table(is.na(df$Name))
+table(ifelse(df$Name=="",1,0))
+table(is.na(df$Sex))
+table(ifelse(df$Sex=="",1,0))
+table(is.na(df$Age))
+table(ifelse(df$Age=="",1,0))
+table(is.na(df$SibSp))
+table(ifelse(df$SibSp=="",1,0))
+table(is.na(df$Parch))
+table(ifelse(df$Parch=="",1,0))
+table(is.na(df$Ticket))
+table(ifelse(df$Ticket=="",1,0))
+table(is.na(df$Fare))
+table(ifelse(df$Fare=="",1,0))
+table(is.na(df$Cabin))
+table(ifelse(df$Cabin=="",1,0))
+table(is.na(df$Embarked))
+table(ifelse(df$Embarked=="",1,0))
+
+df1=df%>%filter(is.na(df$Age)==FALSE,is.na(df$Fare)==FALSE,df$Cabin!="")
+str(df1)
+```
+
+**Comments:**
+After removing the missing observations the new dataset contains 87 observations on 12 variables.
+
+```{r}
+mean.female=mean(ifelse((df1$Sex=="female" & df1$Survived==1),1,0))
+mean.male=mean(ifelse((df1$Sex=="male" & df1$Survived==1),1,0))
+
+print(paste(mean.female*87," females survived and ", mean.male*87," males survived from the given data."))
+mean.female1=mean(ifelse((df1$Sex=="female" & df1$Survived==1 & df1$Pclass==1),1,0))
+mean.female2=mean(ifelse((df1$Sex=="female" & df1$Survived==1 & df1$Pclass==2),1,0))
+mean.female3=mean(ifelse((df1$Sex=="female" & df1$Survived==1 & df1$Pclass==3),1,0))
+
+print(paste(mean.female1*87," females of Pclass 1 survived"))
+print(paste(mean.female2*87," females of Pclass 2 survived"))
+print(paste(mean.female3*87," female of Pclass 3 survived"))
+
+gender=array(0)
+gender=ifelse(df1$Sex=='female',0,1)
+emb=array(0)
+for(i in 1:87){
+  if(df$Embarked[i]=="C")
+    emb[i]=1
+  if(df$Embarked[i]=="Q")
+    emb[i]=2
+  if(df$Embarked[i]=="S")
+    emb[i]=3
+}
+table(gender)
+table(df1$Sex)
+df2=df1%>%mutate(gender,emb)
+str(df2)
+```
+
+```{r}
+s=sample(c(TRUE,FALSE),87,replace=TRUE,c(0.8,0.2))
+train=df2[s,]
+train_female=sum(ifelse(train$Sex=="female",1,0))
+train_male=nrow(train)-train_female
+test=df2[!s,]
+test_female=sum(ifelse(test$Sex=="female",1,0))
+test_male=nrow(test)-test_female
+
+model=glm(Survived~Pclass+Age+gender+SibSp+Parch+Fare+emb,binomial(link = "logit"),data=train)
+summary(model)
+```
+
+**Comments:**
+Splitting the dataset into train and test dataset in 80:20 ratio and applying logistic regression on the train dataset.
+
+```{r}
+pred=predict(model,type="response",newdata = test)
+predicted=ifelse(pred>=0.5,1,0)
+predicted
+table(test$Survived,predicted)
+accuracy=sum(diag(predicted))/sum(predicted)
+accuracy
+test_mse=mean(sum((predicted-test$Survived)**2))
+test_mse
+
+ROC=roc(test$Survived~predicted,plot=TRUE,print.auc=TRUE,col="red",lwd =4,legacy.axes=TRUE,main="ROC Curve")
+
+```
+
+**Comments:**
+Now using the test data I validated the above fitted model.Surprisingly the accuracy of the model comes out to be 1, that is, implying that the model is a perfect one giving the test mse as 0. The ROC curve also shows that the area under the curve is 1. It can be the case that the data lost during the cleaning process may have contained useful information because getting a model whose accuracy pointing to be 100 is seldom the case. 
