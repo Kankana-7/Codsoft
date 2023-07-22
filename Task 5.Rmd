@@ -1,0 +1,94 @@
+---
+title: "TASK-5: Credit Card Fraud Detection"
+author: "Kankana Ghosh"
+date: "`r Sys.Date()`"
+output: html_document
+---
+Importing all the necessary libraries required for the analysis
+```{r setup, include=TRUE,warning=FALSE}
+rm(list=ls())
+set.seed(987654321)
+library(tidyverse)
+library(Metrics)
+library(dplyr)
+library(randomForest)
+```
+```{r}
+df=read.csv("C:/Users/Kankana Ghosh/Desktop/Codsoft/creditcard.csv")
+class(df)
+str(df)
+dim(df)
+```
+
+**Comment:**
+The dataset is dataframe in nature containig 284807 observations on 31 variables.
+
+```{r}
+fraud=sum(ifelse(df$Class==1,1,0))/nrow(df)
+print(paste(round(fraud*100,2), "is the percentage of fraud cases in the given dataset"))
+no.of.frauds=fraud*nrow(df)
+no.of.genuine.transaction=nrow(df)-fraud*nrow(df)
+barplot(table(df$Class),main="Bar plot to show Genuine and Fraud Transactions",width=0.1,col="lightblue",xlab="Transaction", ylab="Number of Transactions")
+print(paste("There are",no.of.genuine.transaction," number of genuine transactions and",no.of.frauds," number of fraud transactions."))
+```
+**Comments:**
+The barplot shows the number of genuine (0) and fraud (1) transaction done.
+
+```{r}
+s=sample(c(TRUE,FALSE),nrow(df),replace = TRUE,c(0.8,0.2))
+train=df[s,]
+test=df[!s,]
+
+model=glm(Class~.,data=train,family=binomial(link="logit"))
+summary(model)
+```
+
+**Comments:**
+Now, splitting the dataset into train and test dataset in 80:20 ratio. Here the response variable is Class and predictors are all the other variables. After splitting the dataset applying logistic regression on the training data.
+
+```{r}
+pred=predict(model,newdata = test,type="response")
+predicted=ifelse(pred>=0.5,1,0)
+contingency.table=table(test$Class,predicted)
+contingency.table
+test.mse=mean(sum((test$Class-predicted)**2))
+test.mse
+accuracy=sum(diag(contingency.table))/sum(contingency.table)
+accuracy
+```
+
+**Comments:**
+Now, using the test data I validate the model.The test mse is less and the accuracy of the model is 99.90% implying that the model is a good model.
+
+```{r}
+Metrics::recall(test$Class,predicted)
+Metrics::precision(test$Class,predicted)
+Metrics::f1(test$Class,predicted)
+```
+**Comments:**
+The recall of the model is 0.59 which is the proportion of observation in the positive class (fraud) is 61% of the total observations.
+
+The precision of the model is 0.87 which is the proportion of observations predicted to be in the positive class (fraud) actually belongs to the positive class.
+
+The f1 score comes out to be 1 which implies that the model made correct prediction across the entire dataset.
+
+```{r}
+rf_classifier= randomForest(Class~.,data=train,ntree=5)
+rf_classifier
+plot(rf_classifier)
+importance(rf_classifier)
+varImpPlot(rf_classifier)
+
+rf_pred=predict(rf_classifier,newdata=test)
+rf_predicted=ifelse(rf_pred>=0.5,1,0)
+rf.contingency.table=table(rf_predicted,test$Class)
+rf.contingency.table
+rf.test.mse=mean(sum((rf_predicted-test$Class)**2))
+rf.test.mse
+rf.accuracy=sum(diag(rf.contingency.table))/sum(rf.contingency.table)
+rf.accuracy
+
+```
+
+**Comments:**
+Now, similarly I fit random forest on the train dataset and I validated the model using the test data. The test mse is less than logistic regression. The accuracy of the model come out to be 99.93%
